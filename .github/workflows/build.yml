@@ -1,0 +1,48 @@
+name: Build Xbox 360 (libxenon)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Testar parser M3U e mapeamento do framebuffer
+        run: |
+          g++ -std=c++11 -Wall -Wextra -o t_m3u tests/test_m3u.cpp source/m3u.cpp
+          ./t_m3u tests/sample.m3u
+          g++ -std=c++11 -o t_tile tests/test_tile.cpp
+          ./t_tile
+      - name: Testar player MPEG-1 (decodificacao e audio)
+        run: |
+          g++ -std=c++11 -O2 -o t_player tests/host_player_test.cpp source/player_core.cpp
+          ./t_player videos/test_352.mpg /tmp/frame.bgra 3
+
+  build-xbox360:
+    runs-on: ubuntu-latest
+    needs: host-tests
+    container: free60/libxenon:latest
+    env:
+      DEVKITXENON: /usr/local/xenon
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar para PowerPC (Xenon)
+        run: |
+          export PATH="$PATH:$DEVKITXENON/bin:$DEVKITXENON/usr/bin"
+          make
+          file iptv360.elf32
+      - name: Montar pacote
+        run: |
+          mkdir -p dist/iptv360
+          cp iptv360.elf32 dist/iptv360/xenon.elf
+          cp playlist.m3u dist/iptv360/playlist.m3u
+          cp videos/*.mpg dist/iptv360/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iptv360-xbox360
+          path: dist/
