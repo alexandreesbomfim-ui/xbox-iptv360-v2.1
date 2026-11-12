@@ -13,9 +13,11 @@ extern "C" {
 #include <diskio/ata.h>
 #include <time/time.h>
 #include <ppc/timebase.h>
+#include <ppc/cache.h>
 #include <xenon_soc/xenon_power.h>
 #include <libfat/fat.h>
 int bdev_enum(int handle, const char** name);  // definido no newlib do libxenon
+extern char bss_start[];
 }
 
 #include "m3u.h"
@@ -186,6 +188,7 @@ static void run_video_test(const char* name) {
 }
 
 int main() {
+    memicbi((void*)0x80000000, (int)((unsigned long)bss_start - 0x80000000UL));
     xenos_init(VIDEO_MODE_AUTO);
     console_init();
     xenon_make_it_faster(XENON_SPEED_FULL);
